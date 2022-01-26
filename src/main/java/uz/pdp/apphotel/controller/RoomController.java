@@ -1,6 +1,6 @@
 package uz.pdp.apphotel.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
@@ -10,48 +10,31 @@ import uz.pdp.apphotel.payload.RoomDto;
 import uz.pdp.apphotel.repository.HotelRepository;
 import uz.pdp.apphotel.repository.RoomRepository;
 
-import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("hotel/room")
+@RequestMapping("/room")
 public class RoomController {
 
-    @Autowired
-    RoomRepository roomRepository;
-    @Autowired
-    HotelRepository hotelRepository;
+    private final RoomRepository roomRepository;
+    private final HotelRepository hotelRepository;
 
-    @PostMapping("/addRoom")
-    public String addRoom(@RequestBody RoomDto roomDto){
 
-        Optional<Hotel> optionalHotel = hotelRepository.findById(roomDto.getHotelId());
-        if(!optionalHotel.isPresent())
-            return "Hotel not Found !";
-
-        try{
-            Room room = new Room();
-            room.setNumberRoom(roomDto.getNumberRoom());
-            room.setFloorNumber(roomDto.getFloorNumber());
-            room.setSizeRoom(roomDto.getSizeRoom());
-            room.setHotel(optionalHotel.get());
-            Room save = roomRepository.save(room);
-            return "Room Added Successfully ! Room ID: " + save.getId();
-        }
-        catch (Exception e){
-            return "Error in Adding !";
-        }
-
+    public RoomController(RoomRepository roomRepository, HotelRepository hotelRepository) {
+        this.roomRepository = roomRepository;
+        this.hotelRepository = hotelRepository;
     }
 
-    @GetMapping("/getRoomById/{id}")
+
+    @GetMapping("/{id}")
     public Room getRoomById(@PathVariable Integer id){
         Optional<Room> byId = roomRepository.findById(id);
         return byId.orElseGet(Room::new);
     }
 
+
     @GetMapping("/getRoomsByHotelId/{id}")
-    public List<Room> getRoomsByHotel(@PathVariable Integer id,
+    public Page<Room> getRoomsByHotelId(@PathVariable Integer id,
                                       @RequestParam(defaultValue = "0") Integer pageNo,
                                       @RequestParam(defaultValue = "10") Integer pageSize){
 
@@ -63,22 +46,33 @@ public class RoomController {
         return roomRepository.findAllByHotel_Id(id, pageable);
     }
 
-    @DeleteMapping("/deleteById/{id}")
-    public String deleteById(@PathVariable Integer id){
 
-        try {
-            roomRepository.deleteById(id);
-            return "Room deleted !";
+    @PostMapping
+    public String addRoom(@RequestBody RoomDto roomDto){
+
+        Optional<Hotel> optionalHotel = hotelRepository.findById(roomDto.getHotelId());
+        if(!optionalHotel.isPresent())
+            return "Hotel not Found !";
+
+        Room room = new Room();
+        room.setNumberRoom(roomDto.getNumberRoom());
+        room.setFloorNumber(roomDto.getFloorNumber());
+        room.setSizeRoom(roomDto.getSizeRoom());
+        room.setHotel(optionalHotel.get());
+
+        try{
+            room = roomRepository.save(room);
+            return "Room Added Successfully ! Room ID: " + room.getId();
         }
         catch (Exception e){
-            return "Error in deleting room !";
+            return "This Room already exists in given Hotel!";
         }
 
     }
 
-    @PutMapping("/updateById/{id}")
-    public String updateById(@PathVariable Integer id,
-                             @RequestBody RoomDto roomDto){
+
+    @PutMapping("/{id}")
+    public String updateRoomById(@PathVariable Integer id, @RequestBody RoomDto roomDto){
 
         Optional<Room> byId = roomRepository.findById(id);
 
@@ -86,35 +80,52 @@ public class RoomController {
 
             Room room = byId.get();
 
-            Integer x = roomDto.getHotelId();
+            Integer hotelId = roomDto.getHotelId();
+            Integer numberRoom = roomDto.getNumberRoom();
 
-            if (x != null && !x.equals(room.getHotel().getId())){
-                Optional<Hotel> byId1 = hotelRepository.findById(x);
-                if (!byId1.isPresent())
+            boolean checkChange = false;
+
+            if (!hotelId.equals(room.getHotel().getId())){
+                Optional<Hotel> optionalHotel = hotelRepository.findById(hotelId);
+                if (!optionalHotel.isPresent())
                     return "Hotel Not Found !";
-                room.setHotel(byId1.get());
+                room.setHotel(optionalHotel.get());
+                checkChange = true;
+            }
+            else if (!room.getNumberRoom().equals(numberRoom)) {
+                room.setNumberRoom(numberRoom);
+                checkChange = true;
             }
 
-            x = roomDto.getNumberRoom();
-            if (x != null)
-                room.setNumberRoom(x);
-            x = roomDto.getFloorNumber();
-            if(x != null)
-                room.setFloorNumber(x);
-            x = roomDto.getSizeRoom();
-            if(x != null)
-                room.setSizeRoom(x);
+            room.setFloorNumber(roomDto.getFloorNumber());
+            room.setSizeRoom(roomDto.getSizeRoom());
 
-            try {
-                roomRepository.save(room);
-                return "Room Updated Successfully !";
+            if (checkChange) {
+                try {
+                    roomRepository.save(room);
+                    return "Room Updated Successfully !";
+                } catch (Exception e) {
+                    return "This Room already exists in given Hotel!";
+                }
             }
-            catch (Exception e){
-                return "Error In Updating Room !";
-            }
+
+            roomRepository.save(room);
+            return "Room Updated Successfully !";
         }
 
         return "Room Not Found !";
+    }
+
+
+    @DeleteMapping("/{id}")
+    public String deleteRoomById(@PathVariable Integer id){
+        try {
+            roomRepository.deleteById(id);
+            return "Room deleted !";
+        }
+        catch (Exception e){
+            return "Room Not Found !";
+        }
     }
 
 }

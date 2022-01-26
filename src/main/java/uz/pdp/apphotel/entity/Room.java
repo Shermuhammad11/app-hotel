@@ -11,20 +11,20 @@ import javax.persistence.*;
 @NoArgsConstructor
 @Data
 @Entity
-@Table(uniqueConstraints = {@UniqueConstraint(columnNames = {"numberRoom", "floorNumber", "hotel_id"})})
+@Table(uniqueConstraints = {@UniqueConstraint(columnNames = {"number_room", "hotel_id"})})
 public class Room {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column(nullable = false, name = "numberRoom")
+    @Column(nullable = false, name = "number_room")
     private Integer numberRoom;
 
-    @Column(nullable = false, name = "floorNumber")
+    @Column(nullable = false)
     private Integer floorNumber;
 
-    @Column(nullable = false, name = "sizeRoom")
+    @Column(nullable = false)
     private Integer sizeRoom;
 
     @ManyToOne(optional = false)
